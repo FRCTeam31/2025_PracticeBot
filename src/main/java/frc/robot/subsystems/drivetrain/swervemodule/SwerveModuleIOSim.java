@@ -15,7 +15,6 @@ import prime.control.PrimePIDConstants;
 
 public class SwerveModuleIOSim implements ISwerveModuleIO {
 
-  private SwerveModuleMap m_Map;
   private SwerveModuleIOInputs m_inputs = new SwerveModuleIOInputs();
 
   // Devices
@@ -25,8 +24,6 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
   private Rotation2d m_steerAngle = new Rotation2d();
 
   public SwerveModuleIOSim(SwerveModuleMap moduleMap) {
-    m_Map = moduleMap;
-
     setupDriveMotor(DriveMap.DrivePID);
   }
 
@@ -61,11 +58,11 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
   private void setupDriveMotor(PrimePIDConstants pid) {
     m_driveMotorSim = new DCMotorSim(
       LinearSystemId.createDCMotorSystem(
-        DCMotor.getFalcon500(1), 
+        DCMotor.getNeoVortex(1), 
         0.001, 
         DriveMap.DriveGearRatio
       ),
-      DCMotor.getFalcon500(1)
+      DCMotor.getNeoVortex(1)
     );
 
     m_driveFeedback = new PIDController(0.1, 0, 0);
@@ -85,7 +82,7 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
     // Set the drive motor to the desired speed
     // Calculate target data to voltage data
     var velocityRadPerSec = desiredState.speedMetersPerSecond / (DriveMap.DriveWheelDiameterMeters / 2);
-    var driveAppliedVolts = m_driveFeedforward.calculate(velocityRadPerSec)
+    var driveAppliedVolts = m_driveFeedforward.calculate(Units.RadiansPerSecond.of(velocityRadPerSec)).magnitude()
             + m_driveFeedback.calculate(m_driveMotorSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
     driveAppliedVolts = MathUtil.clamp(driveAppliedVolts, -12.0, 12.0);
 

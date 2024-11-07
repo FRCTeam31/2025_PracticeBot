@@ -2,24 +2,23 @@ package frc.robot.subsystems.drivetrain.swervemodule;
 
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.MagnetSensorConfigs;
-import com.ctre.phoenix6.configs.Slot0Configs;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
-import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.AbsoluteSensorRangeValue;
-import com.ctre.phoenix6.signals.InvertedValue;
-import com.ctre.phoenix6.signals.NeutralModeValue;
+
 import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.CANSparkFlex;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.SparkPIDController;
+import com.revrobotics.CANSparkBase.ControlType;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.units.Units;
 import frc.robot.maps.*;
+
 import prime.control.PrimePIDConstants;
-import prime.util.CTREConverter;
 
 public class SwerveModuleIOReal implements ISwerveModuleIO {
 
@@ -27,14 +26,11 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
   private SwerveModuleIOInputs m_inputs;
 
   // Devices
-  private CANSparkMax m_SteeringMotor;
-  private TalonFX m_driveMotor;
-  private CANcoder m_encoder;
+  private CANSparkFlex m_SteeringMotor;
   private PIDController m_steeringPidController;
-
-  // CTRE Velocity/volts descriptor.
-  // Starts at velocity 0, no feed forward. Uses PID slot 0.
-  private final VelocityVoltage m_voltageVelocity = new VelocityVoltage(0, 0, false, 0, 0, false, false, false, false);
+  private CANSparkFlex m_driveMotor;
+  private SparkPIDController m_drivePidController;
+  private CANcoder m_encoder;
 
   public SwerveModuleIOReal(SwerveModuleMap moduleMap) {
     m_map = moduleMap;
@@ -47,21 +43,15 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
   @Override
   public SwerveModuleIOInputs getInputs() {
     var rotation = Rotation2d.fromRotations(m_encoder.getPosition().getValueAsDouble());
-    var speedMps = CTREConverter.rotationsToMeters(
-      m_driveMotor.getVelocity().getValueAsDouble(),
-      DriveMap.DriveWheelCircumferenceMeters,
-      DriveMap.DriveGearRatio
-    );
-    var distanceMeters = CTREConverter.rotationsToMeters(
-      m_driveMotor.getPosition().getValueAsDouble(),
-      DriveMap.DriveWheelCircumferenceMeters,
-      DriveMap.DriveGearRatio
-    );
+    var speedMps = Units.RotationsPerSecond.of(m_driveMotor.getEncoder().getVelocity())
+      .times(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
+    var distanceMeters = Units.Rotations.of(m_driveMotor.getEncoder().getPosition())
+      .times(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
 
     m_inputs.ModuleState.angle = rotation;
-    m_inputs.ModuleState.speedMetersPerSecond = speedMps;
+    m_inputs.ModuleState.speedMetersPerSecond = speedMps.magnitude();
     m_inputs.ModulePosition.angle = rotation;
-    m_inputs.ModulePosition.distanceMeters = distanceMeters;
+    m_inputs.ModulePosition.distanceMeters = distanceMeters.magnitude();
 
     return m_inputs;
   }
@@ -81,7 +71,7 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
    * Configures the steering motor and PID controller
    */
   private void setupSteeringMotor(PrimePIDConstants pid) {
-    m_SteeringMotor = new CANSparkMax(m_map.SteeringMotorCanId, MotorType.kBrushless);
+    m_SteeringMotor = new CANSparkFlex(m_map.SteeringMotorCanId, MotorType.kBrushless);
     m_SteeringMotor.restoreFactoryDefaults();
 
     m_SteeringMotor.setSmartCurrentLimit(100, 80);
@@ -100,32 +90,24 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
    * @param pid
    */
   private void setupDriveMotor(PrimePIDConstants pid) {
-    m_driveMotor = new TalonFX(m_map.DriveMotorCanId);
-    m_driveMotor.clearStickyFaults();
-    m_driveMotor.getConfigurator().apply(new TalonFXConfiguration()); // Reset to factory default
+    m_driveMotor = new CANSparkFlex(m_map.DriveMotorCanId, MotorType.kBrushless);
+    m_driveMotor.clearFaults();
+    m_driveMotor.restoreFactoryDefaults();
 
-    TalonFXConfiguration driveMotorConfig = new TalonFXConfiguration();
+    // Set the Spark PID values
+    m_drivePidController = m_driveMotor.getPIDController();
+    m_drivePidController.setP(pid.kP);
+    m_drivePidController.setI(pid.kI);
+    m_drivePidController.setD(pid.kD);
+    m_drivePidController.setFF(pid.kV);
+    m_drivePidController.setOutputRange(-12, 12);
 
-    // Set the PID values for slot 0
-    driveMotorConfig.Slot0 =
-      new Slot0Configs().withKP(pid.kP).withKI(pid.kI).withKD(pid.kD).withKS(pid.kS).withKV(pid.kV);
-
-    // Set the voltage limits
-    driveMotorConfig.Voltage.PeakForwardVoltage = 12;
-    driveMotorConfig.Voltage.PeakReverseVoltage = -12;
-
-    // Set the current limits
-    driveMotorConfig.withCurrentLimits(m_map.DriveCurrentLimitConfiguration);
-
-    // Set the ramp rates
-    driveMotorConfig.withClosedLoopRamps(m_map.DriveClosedLoopRampConfiguration);
-    driveMotorConfig.MotorOutput.Inverted = m_map.DriveInverted 
-      ? InvertedValue.Clockwise_Positive 
-      : InvertedValue.CounterClockwise_Positive; // Clockwise Inversion
+    m_driveMotor.setSmartCurrentLimit(60, 50);
+    m_driveMotor.setOpenLoopRampRate(m_map.DriveMotorRampRate);
+    m_driveMotor.setInverted(m_map.DriveInverted);
 
     // Apply the configuration
-    m_driveMotor.getConfigurator().apply(driveMotorConfig);
-    m_driveMotor.setNeutralMode(NeutralModeValue.Brake);
+    m_driveMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
   }
 
   /**
@@ -160,20 +142,30 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     desiredState = optimize(desiredState);
 
     // Set the drive motor to the desired speed
-    var speedRotationsPerSecond = CTREConverter.metersToRotations(
-      desiredState.speedMetersPerSecond,
-      DriveMap.DriveWheelCircumferenceMeters,
-      DriveMap.DriveGearRatio
-    );
-
-    m_driveMotor.setControl(m_voltageVelocity.withVelocity(speedRotationsPerSecond));
+    setDriveSpeed(desiredState.speedMetersPerSecond);
 
     // Set the steering motor to the desired angle
-    var setpoint = desiredState.angle.getRotations() % 1;
-    if (setpoint < 0) setpoint += 1;
+    setSteerMotorSpeed(desiredState.angle);
+  }
 
-    var newOutput = m_steeringPidController.calculate(m_inputs.ModuleState.angle.getRotations(), setpoint);
+  private void setDriveSpeed(double speedMetersPerSecond) {
+    // Convert the speed to rotations per second by dividing by the wheel circumference and gear ratio
+    var speedRotationsPerSecond = Units.MetersPerSecond.of(speedMetersPerSecond)
+      .divide(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
 
+    // Set the drive motor to the desired speed using the spark's internal PID controller
+    m_drivePidController.setReference(speedRotationsPerSecond.magnitude(), ControlType.kVelocity);
+  }
+
+  private void setSteerMotorSpeed(Rotation2d angle) {
+    // Normalize to 0 to 1
+    var setpoint = angle.getRotations() % 1; 
+    if (setpoint < 0) setpoint += 1; 
+
+    // Calculate the new output using the PID controller
+    var newOutput = m_steeringPidController.calculate(m_inputs.ModuleState.angle.getRotations(), setpoint); 
+    
+    // Set the steering motor's speed to the calculated output
     m_SteeringMotor.set(MathUtil.clamp(newOutput, -1, 1));
   }
 

@@ -1,9 +1,6 @@
 package frc.robot;
 
-import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.networktables.GenericEntry;
-import edu.wpi.first.util.PixelFormat;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
@@ -17,7 +14,6 @@ public class DriverDashboard {
   public static ShuffleboardTab DriverTab = Shuffleboard.getTab("Driver");
   public static ShuffleboardTab AutoTab = Shuffleboard.getTab("Auto Commands");
 
-  public static UsbCamera m_frontColorCam;
   public static SendableChooser<Command> AutoChooser;
   public static GenericEntry AllianceBox = DriverTab
     .add("Alliance", false)
@@ -68,14 +64,6 @@ public class DriverDashboard {
     .withSize(2, 1)
     .getEntry();
 
-  // Climbers
-  public static GenericEntry ClimberControlsActiveBox = DriverTab
-    .add("Climbers Enabled", false)
-    .withWidget(BuiltInWidgets.kBooleanBox)
-    .withPosition(5, 6)
-    .withSize(3, 2)
-    .getEntry();
-
   /**
    * Constructs a new DriverDashboard and adds complex widgets that must be created in the constructor
    * @param config
@@ -88,18 +76,6 @@ public class DriverDashboard {
     //     "http://" + config.Drivetrain.LimelightRearName + ".local:5800/stream.mjpg"
     //   )
     //   .withPosition(0, 0)
-    //   .withSize(6, 6)
-    //   .withWidget(BuiltInWidgets.kCameraStream)
-    //   .withProperties(Map.of("Show controls", false, "Show crosshair", false));
-    if (isReal) {
-      m_frontColorCam = CameraServer.startAutomaticCapture();
-      m_frontColorCam.setResolution(320, 240);
-      m_frontColorCam.setFPS(20);
-      m_frontColorCam.setPixelFormat(PixelFormat.kMJPEG);
-    }
-    // DriverTab
-    //   .add(m_frontColorCam)
-    //   .withPosition(6, 0)
     //   .withSize(6, 6)
     //   .withWidget(BuiltInWidgets.kCameraStream)
     //   .withProperties(Map.of("Show controls", false, "Show crosshair", false));

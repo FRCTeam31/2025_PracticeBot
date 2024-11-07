@@ -1,10 +1,6 @@
 package frc.robot.maps;
 
-import com.ctre.phoenix6.configs.ClosedLoopRampsConfigs;
-import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.units.Units;
-import edu.wpi.first.units.measure.Current;
 
 public class SwerveModuleMap {
 
@@ -15,14 +11,7 @@ public class SwerveModuleMap {
   public Translation2d ModuleLocation;
   public boolean DriveInverted;
   public boolean SteerInverted;
-
-  public ClosedLoopRampsConfigs DriveClosedLoopRampConfiguration = new ClosedLoopRampsConfigs()
-    .withTorqueClosedLoopRampPeriod(0.5)
-    .withVoltageClosedLoopRampPeriod(0.5)
-    .withDutyCycleClosedLoopRampPeriod(0.5);
-  public CurrentLimitsConfigs DriveCurrentLimitConfiguration = new CurrentLimitsConfigs()
-    .withSupplyCurrentLimitEnable(true)
-    .withSupplyCurrentLimit(Current.ofBaseUnits(40, Units.Amp));
+  public double DriveMotorRampRate = 0.5;
 
   public SwerveModuleMap(
     int driveMotorCanId,
