@@ -9,36 +9,35 @@ import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.epilogue.Logged.Importance;
 import edu.wpi.first.epilogue.Logged.Strategy;
 import edu.wpi.first.epilogue.logging.errors.ErrorHandler;
+import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.LEDPattern.GradientType;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
-import prime.control.LEDs.Color;
-import prime.control.LEDs.Patterns.BlinkPattern;
-import prime.control.LEDs.Patterns.ChasePattern;
-import prime.control.LEDs.Patterns.PulsePattern;
+import frc.robot.subsystems.PwmLEDs;
 
 @Logged(strategy = Strategy.OPT_IN)
 public class Robot extends TimedRobot {
 
-  @Logged(name = "Robot/Container", importance = Importance.CRITICAL)
-  private RobotContainer m_robotContainer;
+  @Logged(name = "Container", importance = Importance.CRITICAL)
+  private Container m_robotContainer;
   private Command m_autonomousCommand;
 
-  @Override
-  public void robotInit() {
-    // Start L2 logging
+  public Robot() {
+    super(0.02); // Run the robot loop at 50Hz
+
+    // Configure logging
     DataLogManager.start();
+    DataLogManager.logConsoleOutput(true);
+    DataLogManager.logNetworkTables(true);
     DriverStation.startDataLog(DataLogManager.getLog());
-
-    // Initialize the robot container
-    m_robotContainer = new RobotContainer(isReal());
-
-    DataLogManager.start();
     Epilogue.configure(config -> {
       if (isSimulation()) {
         // If running in simulation, then we'd want to re-throw any errors that
@@ -53,11 +52,25 @@ public class Robot extends TimedRobot {
       // config.minimumImportance = Logged.Importance.CRITICAL;
     });
     Epilogue.bind(this);
+
+    // Initialize the robot container
+    m_robotContainer = new Container(isReal());
+
+    // Schedule the LED patterns to run at 200Hz
+    // This is the recommended way to schedule a periodic task that runs faster than the robot loop
+    // This also adds a delay of 3ms to the task to ensure it does not run at the same time as 
+    // subsystem periodic functions
+    addPeriodic(m_robotContainer.LEDs::updateLedStrip, 
+      Units.Milliseconds.of(5), 
+      Units.Milliseconds.of(3));
   }
 
   @Override
   public void disabledInit() {
-    m_robotContainer.LEDs.setStripPersistentPattern(new PulsePattern(onRedAlliance() ? Color.RED : Color.BLUE, 2));
+    DataLogManager.log("Robot disabled");
+    var disabledPattern = LEDPattern.solid(getAllianceColor()).breathe(Units.Seconds.of(2.0));
+    m_robotContainer.LEDs.setBackgroundPattern(disabledPattern);
+    m_robotContainer.LEDs.clearForegroundPattern();
   }
 
   /**
@@ -68,7 +81,7 @@ public class Robot extends TimedRobot {
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
 
-    m_robotContainer.DriverDashboard.AllianceBox.setBoolean(onRedAlliance());
+    DriverDashboard.AllianceBox.setBoolean(onRedAlliance());
   }
 
   /**
@@ -76,16 +89,25 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_robotContainer.LEDs.setStripPersistentPattern(new BlinkPattern(onRedAlliance() ? Color.RED : Color.BLUE, 0.250));
+    var autoPattern = LEDPattern.gradient(GradientType.kDiscontinuous, getAllianceColor(), Color.kBlack)
+      .offsetBy(-PwmLEDs.VMap.PixelsPerStrip / 2)
+      .scrollAtRelativeSpeed(Units.Hertz.of(2))
+      .reversed();
+    var combinedPattern = LEDPattern.gradient(GradientType.kDiscontinuous, getAllianceColor(), Color.kBlack)
+      .offsetBy(PwmLEDs.VMap.PixelsPerStrip / 2)
+      .scrollAtRelativeSpeed(Units.Hertz.of(2))
+      .blend(autoPattern);
+    m_robotContainer.LEDs.setBackgroundPattern(combinedPattern);
+    m_robotContainer.LEDs.clearForegroundPattern();
 
     // Cancel any auto command that's still running and reset the subsystem states
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
 
       // Stop the shooter and intake motors in case they're still running and set the intake IN
-      m_robotContainer.Shooter.stopMotorsCommand().schedule();
-      m_robotContainer.Intake.stopRollersCommand().schedule();
-      m_robotContainer.Intake.setIntakeInCommand().schedule();
+      // m_robotContainer.Shooter.stopMotorsCommand().schedule();
+      // m_robotContainer.Intake.stopRollersCommand().schedule();
+      // m_robotContainer.Intake.setIntakeInCommand().schedule();
     }
 
     m_autonomousCommand = m_robotContainer.getAutonomousCommand();
@@ -96,8 +118,8 @@ public class Robot extends TimedRobot {
       m_robotContainer.Drivetrain.resetGyro();
     } else {
       // Schedule the auto command
-      m_robotContainer.Drivetrain.EnableContinuousPoseEstimationFront = true;
-      m_robotContainer.Drivetrain.EnableContinuousPoseEstimationRear = true;
+      m_robotContainer.Drivetrain.EstimatePoseUsingFrontCamera = true;
+      m_robotContainer.Drivetrain.EstimatePoseUsingRearCamera = true;
 
       if (onRedAlliance()) m_robotContainer.Drivetrain.resetGyro();
 
@@ -111,22 +133,23 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopInit() {
+    DataLogManager.log("Teleop Enabled");
     if (m_autonomousCommand != null) {
       // Cancel the auto command if it's still running
       m_autonomousCommand.cancel();
 
       // Stop the shooter and intake motors in case they're still running
-      m_robotContainer.Shooter.stopMotorsCommand().schedule();
-      m_robotContainer.Intake.stopRollersCommand().schedule();
+      // m_robotContainer.Shooter.stopMotorsCommand().schedule();
+      // m_robotContainer.Intake.stopRollersCommand().schedule();
     }
 
     // Set teleop LED pattern
-    m_robotContainer.LEDs.setStripPersistentPattern(
-      new ChasePattern(onRedAlliance() ? Color.RED : Color.BLUE, 0.5, false)
-    );
+    var telePattern = LEDPattern.solid(getAllianceColor()).scrollAtRelativeSpeed(Units.Hertz.of(2));
+    m_robotContainer.LEDs.setBackgroundPattern(telePattern);
+    m_robotContainer.LEDs.clearForegroundPattern();
 
-    m_robotContainer.Drivetrain.EnableContinuousPoseEstimationFront = false;
-    m_robotContainer.Drivetrain.EnableContinuousPoseEstimationRear = false;
+    m_robotContainer.Drivetrain.EstimatePoseUsingFrontCamera = false;
+    m_robotContainer.Drivetrain.EstimatePoseUsingRearCamera = false;
   }
 
   /**
@@ -147,5 +170,16 @@ public class Robot extends TimedRobot {
     var alliance = DriverStation.getAlliance();
 
     return alliance.isPresent() && alliance.get() == Alliance.Blue;
+  }
+
+  public static Color getAllianceColor() {
+    var alliance = DriverStation.getAlliance();
+    Color allianceColor = Color.kGhostWhite;
+    if (alliance.isPresent())
+      allianceColor = alliance.get() == Alliance.Red 
+        ? Color.kRed 
+        : Color.kBlue;
+
+    return allianceColor;
   }
 }
