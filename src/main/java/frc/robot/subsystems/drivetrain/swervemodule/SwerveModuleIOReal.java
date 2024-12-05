@@ -74,7 +74,7 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     m_SteeringMotor = new CANSparkFlex(m_map.SteeringMotorCanId, MotorType.kBrushless);
     m_SteeringMotor.restoreFactoryDefaults();
 
-    m_SteeringMotor.setSmartCurrentLimit(100, 80);
+    m_SteeringMotor.setSmartCurrentLimit(60, 50);
     m_SteeringMotor.clearFaults();
     m_SteeringMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
     m_SteeringMotor.setInverted(m_map.SteerInverted); // CCW inversion

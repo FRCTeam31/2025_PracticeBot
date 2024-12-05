@@ -79,6 +79,10 @@ public class DrivetrainIOSim implements IDrivetrainIO {
     m_moduleInputs[1] = m_frontRightModule.getInputs();
     m_moduleInputs[2] = m_rearLeftModule.getInputs();
     m_moduleInputs[3] = m_rearRightModule.getInputs();
+    m_inputs.ModuleStates = new SwerveModuleState[] {
+        m_moduleInputs[0].ModuleState, m_moduleInputs[1].ModuleState, m_moduleInputs[2].ModuleState,
+        m_moduleInputs[3].ModuleState,
+    };
 
     m_inputs.RobotRelativeChassisSpeeds = m_kinematics.toChassisSpeeds(getModuleStates());
     m_gyroSim.setAngle(new Rotation2d(Rotation2d.fromDegrees(m_gyroSim.getAngle()).getRadians() + m_inputs.RobotRelativeChassisSpeeds.omegaRadiansPerSecond * 0.02).getDegrees());

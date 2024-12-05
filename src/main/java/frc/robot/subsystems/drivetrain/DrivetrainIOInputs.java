@@ -4,6 +4,7 @@ import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.SwerveModuleState;
 
 @Logged
 public class DrivetrainIOInputs {
@@ -15,4 +16,5 @@ public class DrivetrainIOInputs {
     public ChassisSpeeds RobotRelativeChassisSpeeds = new ChassisSpeeds();
     public Pose2d EstimatedRobotPose = new Pose2d();
     public double SnapCorrectionRadiansPerSecond = 0;
+    public SwerveModuleState[] ModuleStates = new SwerveModuleState[4];
 }

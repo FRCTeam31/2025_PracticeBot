@@ -67,6 +67,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
   private IDrivetrainIO m_driveio = Robot.isReal()
     ? new DrivetrainIOReal() 
     : new DrivetrainIOSim();
+  @Logged(name = "DriveIOInputs", importance = Logged.Importance.CRITICAL)
   private DrivetrainIOInputs m_inputs;
   @Logged(name = "DriveIOOutputs", importance = Logged.Importance.CRITICAL)
   private DrivetrainIOOutputs m_outputs;
