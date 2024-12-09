@@ -16,7 +16,7 @@ public class DriveMap {
   public static final double MaxSpeedMetersPerSecond = Units.feetToMeters(20);
   public static final double MaxAccelerationMetersPerSecondSquared = Units.feetToMeters(15);
   public static final double MaxAngularSpeedRadians = Math.PI * 3;
-  public static final int PigeonId = 1;
+  public static final int PigeonId = 10;
   public static final double DriveDeadband = 0.15;
   public static final double DeadbandCurveWeight = 0.5;
   // public static final PrimePIDConstants DrivePID = new PrimePIDConstants(0.019, 0, 0, 0, 0.091, 0, 0.05);
@@ -48,36 +48,36 @@ public class DriveMap {
   );
 
   public static final SwerveModuleMap FrontLeftSwerveModule = new SwerveModuleMap(
+    1,
     2,
-    3,
-    4,
+    14,
     0.657,
     true,
     true,
     new Translation2d(TrackWidthMeters / 2, WheelBaseMeters / 2)
   );
   public static final SwerveModuleMap FrontRightSwerveModule = new SwerveModuleMap(
-    5,
-    6,
     7,
+  8,
+    13,
     0.355,
     true,
     true,
     new Translation2d(TrackWidthMeters / 2, -(WheelBaseMeters / 2))
   );
   public static final SwerveModuleMap RearRightSwerveModule = new SwerveModuleMap(
-    8,
-    9,
-    10,
+    5,
+    6,
+    12,
     0.709,
     true,
     true,
     new Translation2d(-(TrackWidthMeters / 2), -(WheelBaseMeters / 2))
   );
   public static final SwerveModuleMap RearLeftSwerveModule = new SwerveModuleMap(
+    3,
+    4,
     11,
-    12,
-    13,
     0.671,
     true,
     true,
