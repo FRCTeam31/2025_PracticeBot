@@ -53,12 +53,22 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     m_inputs.ModulePosition.angle = rotation;
     m_inputs.ModulePosition.distanceMeters = distanceMeters.magnitude();
 
+    m_inputs.DriveMotorVoltage = m_driveMotor.getAppliedOutput() * m_driveMotor.getBusVoltage();
+
     return m_inputs;
   }
 
   @Override
   public void setOutputs(SwerveModuleIOOutputs outputs) {
     setDesiredState(outputs.DesiredState);
+  }
+
+  @Override
+  public void setDriveVoltage(double voltage, Rotation2d moduleAngle) {
+    var speed = voltage / m_driveMotor.getBusVoltage();
+    m_driveMotor.set(speed);
+
+    setModuleAngle(moduleAngle);
   }
 
   @Override
@@ -145,7 +155,7 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     setDriveSpeed(desiredState.speedMetersPerSecond);
 
     // Set the steering motor to the desired angle
-    setSteerMotorSpeed(desiredState.angle);
+    setModuleAngle(desiredState.angle);
   }
 
   private void setDriveSpeed(double speedMetersPerSecond) {
@@ -159,7 +169,7 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     m_drivePidController.setReference(speedRotationsPerSecond.magnitude(), ControlType.kVelocity);
   }
 
-  private void setSteerMotorSpeed(Rotation2d angle) {
+  private void setModuleAngle(Rotation2d angle) {
     // Normalize to 0 to 1
     var setpoint = angle.getRotations() % 1;
     if (setpoint < 0)

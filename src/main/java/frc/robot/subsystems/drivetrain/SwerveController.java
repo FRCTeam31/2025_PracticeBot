@@ -18,8 +18,11 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.units.Units;
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.simulation.AnalogGyroSim;
+import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
 import frc.robot.Robot;
 import frc.robot.maps.DriveMap;
 import frc.robot.subsystems.drivetrain.swervemodule.ISwerveModuleIO;
@@ -157,6 +160,28 @@ public class SwerveController {
     m_frontRightModule.setOutputs(m_moduleOutputs[1]);
     m_rearLeftModule.setOutputs(m_moduleOutputs[2]);
     m_rearRightModule.setOutputs(m_moduleOutputs[3]);
+  }
+
+  public void setDriveVoltages(Voltage volts) {
+    var angle = Rotation2d.fromDegrees(0);
+    m_frontLeftModule.setDriveVoltage(volts.magnitude(), angle);
+    m_frontRightModule.setDriveVoltage(volts.magnitude(), angle);
+    m_rearLeftModule.setDriveVoltage(volts.magnitude(), angle);
+    m_rearRightModule.setDriveVoltage(volts.magnitude(), angle);
+  }
+
+  public void logSysIdDrive(SysIdRoutineLog log) {
+    // Record a frame for the left motors. Since these share an encoder, we consider
+    // the entire group to be one motor.
+    log.motor("Front-Left-Module")
+        .voltage(Units.Volts.of(
+            m_moduleInputs[0].DriveMotorVoltage)) // measured motor voltage
+        .linearPosition(Units.Meters.of(
+            m_moduleInputs[0].ModulePosition.distanceMeters)) // distance in meters
+        .linearVelocity(Units.MetersPerSecond.of(m_moduleInputs[0].ModuleState.speedMetersPerSecond)); // speed in
+                                                                                                       // meters per
+                                                                                                       // second
+
   }
 
   public void resetGyro() {

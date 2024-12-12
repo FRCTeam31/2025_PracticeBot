@@ -14,6 +14,7 @@ import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.units.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.LEDPattern;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
@@ -21,7 +22,8 @@ import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.DriverDashboard;
 import frc.robot.Robot;
 import frc.robot.maps.DriveMap;
@@ -84,6 +86,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
   private LEDPattern _snapOffTargetPattern = LEDPattern.steps(Map.of(0.0, Color.kRed, 0.25, Color.kBlack))
       .scrollAtRelativeSpeed(Units.Hertz.of(2));
 
+  SysIdRoutine _driveSysIdRoutine;
+
   /**
    * Creates a new Drivetrain.
    */
@@ -106,6 +110,22 @@ public class DrivetrainSubsystem extends SubsystemBase {
     _limelightInputsSupplier = limelightInputsSupplier;
 
     configurePathPlanner();
+
+    // Create a new SysId routine for characterizing the drive.
+    _driveSysIdRoutine = new SysIdRoutine(
+        // Ramp up at 1 volt per second for quasistatic tests, step at 2 volts in
+        // dynamic tests, run for 13 seconds.
+        new SysIdRoutine.Config(Units.Volts.of(0.5).per(Units.Second),
+            Units.Volts.of(2), Units.Seconds.of(10)),
+        new SysIdRoutine.Mechanism(
+            // Tell SysId how to plumb the driving voltage to the motors.
+            _swerveController::setDriveVoltages,
+            // Tell SysId how to record a frame of data for each motor on the mechanism
+            // being characterized.
+            _swerveController::logSysIdDrive,
+            // Tell SysId to make generated commands require this subsystem, suffix test
+            // state in WPILog with this subsystem's name
+            this));
   }
 
   private void configurePathPlanner() {
@@ -359,7 +379,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
   /**
    * Enables lock-on control
    */
-  public Command enableLockOn() {
+  public Command enableLockOnCommand() {
     return Commands.run(() -> {
       var rearLimelightInputs = _limelightInputsSupplier.get()[1];
 
@@ -378,8 +398,16 @@ public class DrivetrainSubsystem extends SubsystemBase {
     });
   }
 
+  public Command runSysIdQuasistaticRoutineCommand(Direction dir) {
+    return _driveSysIdRoutine.quasistatic(dir);
+  }
+
+  public Command runSysIdDynamicRoutineCommand(Direction dir) {
+    return _driveSysIdRoutine.dynamic(dir);
+  }
+
   public Map<String, Command> getNamedCommands() {
-    return Map.of("Enable_Lock_On", enableLockOn(), "Disable_Snap_To", disableSnapToCommand());
+    return Map.of("Enable_Lock_On", enableLockOnCommand(), "Disable_Snap_To", disableSnapToCommand());
   }
   // #endregion
 }

@@ -30,12 +30,14 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
   @Override
   public SwerveModuleIOInputs getInputs() {
     m_driveMotorSim.update(0.020);
-    var speedMps = m_driveMotorSim.getAngularVelocity().in(Units.RotationsPerSecond) * DriveMap.DriveWheelCircumferenceMeters;
-    
+    var speedMps = m_driveMotorSim.getAngularVelocity().in(Units.RotationsPerSecond)
+        * DriveMap.DriveWheelCircumferenceMeters;
+
     m_inputs.ModuleState.angle = m_steerAngle;
     m_inputs.ModuleState.speedMetersPerSecond = speedMps;
     m_inputs.ModulePosition.angle = m_steerAngle;
-    m_inputs.ModulePosition.distanceMeters = m_driveMotorSim.getAngularPositionRotations() * DriveMap.DriveWheelCircumferenceMeters;
+    m_inputs.ModulePosition.distanceMeters = m_driveMotorSim.getAngularPositionRotations()
+        * DriveMap.DriveWheelCircumferenceMeters;
 
     return m_inputs;
   }
@@ -46,6 +48,12 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
   }
 
   @Override
+  public void setDriveVoltage(double voltage, Rotation2d moduleAngle) {
+    m_driveMotorSim.setInputVoltage(voltage);
+    m_steerAngle = moduleAngle;
+  }
+
+  @Override
   public void stopMotors() {
     m_driveMotorSim.setInputVoltage(0);
     m_driveMotorSim.setAngularVelocity(0);
@@ -53,17 +61,16 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
 
   /**
    * Configures the drive motors
+   * 
    * @param pid
    */
   private void setupDriveMotor(PrimePIDConstants pid) {
     m_driveMotorSim = new DCMotorSim(
-      LinearSystemId.createDCMotorSystem(
-        DCMotor.getNeoVortex(1), 
-        0.001, 
-        DriveMap.DriveGearRatio
-      ),
-      DCMotor.getNeoVortex(1)
-    );
+        LinearSystemId.createDCMotorSystem(
+            DCMotor.getNeoVortex(1),
+            0.001,
+            DriveMap.DriveGearRatio),
+        DCMotor.getNeoVortex(1));
 
     m_driveFeedback = new PIDController(0.1, 0, 0);
     m_driveFeedforward = new SimpleMotorFeedforward(0.0, 0.085);
@@ -72,7 +79,8 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
   /**
    * Sets the desired state of the module.
    *
-   * @param desiredState The optimized state of the module that we'd like to be at in this
+   * @param desiredState The optimized state of the module that we'd like to be at
+   *                     in this
    *                     period
    */
   private void setDesiredState(SwerveModuleState desiredState) {
@@ -83,7 +91,7 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
     // Calculate target data to voltage data
     var velocityRadPerSec = desiredState.speedMetersPerSecond / (DriveMap.DriveWheelDiameterMeters / 2);
     var driveAppliedVolts = m_driveFeedforward.calculate(Units.RadiansPerSecond.of(velocityRadPerSec)).magnitude()
-            + m_driveFeedback.calculate(m_driveMotorSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
+        + m_driveFeedback.calculate(m_driveMotorSim.getAngularVelocityRadPerSec(), velocityRadPerSec);
     driveAppliedVolts = MathUtil.clamp(driveAppliedVolts, -12.0, 12.0);
 
     m_driveMotorSim.setInputVoltage(driveAppliedVolts);
@@ -92,7 +100,9 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
   }
 
   /**
-   * Optimizes the module angle & drive inversion to ensure the module takes the shortest path to drive at the desired angle
+   * Optimizes the module angle & drive inversion to ensure the module takes the
+   * shortest path to drive at the desired angle
+   * 
    * @param desiredState
    */
   private SwerveModuleState optimize(SwerveModuleState desiredState) {
@@ -100,9 +110,8 @@ public class SwerveModuleIOSim implements ISwerveModuleIO {
     var delta = desiredState.angle.minus(currentAngle);
     if (Math.abs(delta.getDegrees()) > 90.0) {
       return new SwerveModuleState(
-        -desiredState.speedMetersPerSecond,
-        desiredState.angle.rotateBy(Rotation2d.fromDegrees(180.0))
-      );
+          -desiredState.speedMetersPerSecond,
+          desiredState.angle.rotateBy(Rotation2d.fromDegrees(180.0)));
     } else {
       return desiredState;
     }
