@@ -19,7 +19,7 @@ public class DriveMap {
   public static final int PigeonId = 10;
   public static final double DriveDeadband = 0.15;
   public static final double DeadbandCurveWeight = 0.5;
-  // public static final PrimePIDConstants DrivePID = new PrimePIDConstants(0.019, 0, 0, 0, 0.091, 0, 0.05);
+  public static final PrimePIDConstants DrivePID = new PrimePIDConstants(0.1, 0, 0, 0, 0.091, 0, 0.05);
   public static final PrimePIDConstants SteeringPID = new PrimePIDConstants(2, 0, 0);
   public static final PrimePIDConstants SnapToPID = new PrimePIDConstants(6, 0, 0);
   public static final PrimePIDConstants PathingTranslationPid = new PrimePIDConstants(3, 0, 0);
@@ -51,7 +51,7 @@ public class DriveMap {
     1,
     2,
     14,
-    0.657,
+    0.673828,
     true,
     true,
     new Translation2d(TrackWidthMeters / 2, WheelBaseMeters / 2)
@@ -60,7 +60,7 @@ public class DriveMap {
     7,
   8,
     13,
-    0.355,
+    0.113770,
     true,
     true,
     new Translation2d(TrackWidthMeters / 2, -(WheelBaseMeters / 2))
@@ -69,7 +69,7 @@ public class DriveMap {
     5,
     6,
     12,
-    0.709,
+    0.699951,
     true,
     true,
     new Translation2d(-(TrackWidthMeters / 2), -(WheelBaseMeters / 2))
@@ -78,7 +78,7 @@ public class DriveMap {
     3,
     4,
     11,
-    0.671,
+    0.136963,
     true,
     true,
     new Translation2d(-TrackWidthMeters / 2, WheelBaseMeters / 2)
