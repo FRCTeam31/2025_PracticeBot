@@ -14,7 +14,7 @@ import edu.wpi.first.epilogue.Logged.Strategy;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj2.command.Command;
-
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.subsystems.*;
 import frc.robot.maps.DriveMap;
 import frc.robot.subsystems.drivetrain.DrivetrainSubsystem;
@@ -28,11 +28,11 @@ import prime.control.PrimeXboxController;
 public class Container {
   private PrimeXboxController m_driverController;
 
-  @Logged(name="Vision", importance = Importance.CRITICAL)
+  @Logged(name = "Vision", importance = Importance.CRITICAL)
   public VisionSubsystem Vision;
-  @Logged(name="Drive", importance = Importance.CRITICAL)
+  @Logged(name = "Drive", importance = Importance.CRITICAL)
   public DrivetrainSubsystem Drivetrain;
-  @Logged(name="LEDs", importance = Importance.CRITICAL)
+  @Logged(name = "LEDs", importance = Importance.CRITICAL)
   public PwmLEDs LEDs;
 
   public Container(boolean isReal) {
@@ -43,12 +43,13 @@ public class Container {
       // Create new subsystems
       LEDs = new PwmLEDs();
       Vision = new VisionSubsystem();
-      Drivetrain = new DrivetrainSubsystem(isReal, 
-        LEDs::clearForegroundPattern, 
-        LEDs::setForegroundPattern, 
-        Vision::getAllLimelightInputs);
+      Drivetrain = new DrivetrainSubsystem(isReal,
+          LEDs::clearForegroundPattern,
+          LEDs::setForegroundPattern,
+          Vision::getAllLimelightInputs);
 
-      // Register the named commands from each subsystem that may be used in PathPlanner
+      // Register the named commands from each subsystem that may be used in
+      // PathPlanner
       NamedCommands.registerCommands(Drivetrain.getNamedCommands());
 
       // Create Auto chooser and Auto tab in Shuffleboard
@@ -78,6 +79,7 @@ public class Container {
 
   /**
    * Returns the selected autonomous command to run
+   * 
    * @return
    */
   public Command getAutonomousCommand() {
@@ -91,17 +93,15 @@ public class Container {
     // Controls for Driving
     m_driverController.a().onTrue(Drivetrain.resetGyroCommand());
     Drivetrain.setDefaultCommand(
-      Drivetrain.driveRobotRelativeCommand(
-        m_driverController.getSwerveControlProfile(
-          HolonomicControlStyle.Drone,
-          DriveMap.DriveDeadband,
-          DriveMap.DeadbandCurveWeight
-        )
-      )
-    );
+        Drivetrain.driveRobotRelativeCommand(
+            m_driverController.getSwerveControlProfile(
+                HolonomicControlStyle.Drone,
+                DriveMap.DriveDeadband,
+                DriveMap.DeadbandCurveWeight)));
 
     // While holding b, auto-aim the robot to the apriltag target using snap-to
-    m_driverController.leftStick().whileTrue(Drivetrain.enableLockOn()).onFalse(Drivetrain.disableSnapToCommand());
+    m_driverController.leftStick().whileTrue(Drivetrain.enableLockOnCommand())
+        .onFalse(Drivetrain.disableSnapToCommand());
 
     // Controls for Snap-To with field-relative setpoints
     m_driverController.x().onTrue(Drivetrain.disableSnapToCommand());
@@ -109,6 +109,12 @@ public class Container {
     m_driverController.pov(Controls.left).onTrue(Drivetrain.setSnapToSetpointCommand(270));
     m_driverController.pov(Controls.down).onTrue(Drivetrain.setSnapToSetpointCommand(180));
     m_driverController.pov(Controls.right).onTrue(Drivetrain.setSnapToSetpointCommand(90));
+
+    // Uncomment to enable SysID Routines.
+    // m_driverController.pov(Controls.up).onTrue(Drivetrain.runSysIdQuasistaticRoutineCommand(Direction.kForward));
+    // m_driverController.pov(Controls.down).onTrue(Drivetrain.runSysIdQuasistaticRoutineCommand(Direction.kReverse));
+    // m_driverController.pov(Controls.right).onTrue(Drivetrain.runSysIdDynamicRoutineCommand(Direction.kForward));
+    // m_driverController.pov(Controls.left).onTrue(Drivetrain.runSysIdDynamicRoutineCommand(Direction.kReverse));
   }
 
 }

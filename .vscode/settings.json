@@ -29,9 +29,12 @@
   "[java]": {
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.codeActionsOnSave": [
       "editor.action.formatDocument",
     ]
   },
+  "java.import.gradle.annotationProcessing.enabled": false,
+  "java.format.settings.url": "formatter.xml",
+  "editor.detectIndentation": false,
+  "editor.tabSize": 2
 }

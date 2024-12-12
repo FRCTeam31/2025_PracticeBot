@@ -44,14 +44,16 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
   public SwerveModuleIOInputs getInputs() {
     var rotation = Rotation2d.fromRotations(m_encoder.getPosition().getValueAsDouble());
     var speedMps = Units.RotationsPerSecond.of(m_driveMotor.getEncoder().getVelocity())
-      .times(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
+        .times(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
     var distanceMeters = Units.Rotations.of(m_driveMotor.getEncoder().getPosition())
-      .times(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
+        .times(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
 
     m_inputs.ModuleState.angle = rotation;
     m_inputs.ModuleState.speedMetersPerSecond = speedMps.magnitude();
     m_inputs.ModulePosition.angle = rotation;
     m_inputs.ModulePosition.distanceMeters = distanceMeters.magnitude();
+
+    m_inputs.DriveMotorVoltage = m_driveMotor.getAppliedOutput() * m_driveMotor.getBusVoltage();
 
     return m_inputs;
   }
@@ -59,6 +61,14 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
   @Override
   public void setOutputs(SwerveModuleIOOutputs outputs) {
     setDesiredState(outputs.DesiredState);
+  }
+
+  @Override
+  public void setDriveVoltage(double voltage, Rotation2d moduleAngle) {
+    var speed = voltage / m_driveMotor.getBusVoltage();
+    m_driveMotor.set(speed);
+
+    setModuleAngle(moduleAngle);
   }
 
   @Override
@@ -87,6 +97,7 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
 
   /**
    * Configures the drive motors
+   * 
    * @param pid
    */
   private void setupDriveMotor(PrimePIDConstants pid) {
@@ -120,21 +131,20 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
 
     // AbsoluteSensorRangeValue
     m_encoder
-      .getConfigurator()
-      .apply(
-        new CANcoderConfiguration()
-          .withMagnetSensor(
-            new MagnetSensorConfigs()
-              .withAbsoluteSensorRange(AbsoluteSensorRangeValue.Unsigned_0To1)
-              .withMagnetOffset(-m_map.CanCoderStartingOffset)
-          )
-      );
+        .getConfigurator()
+        .apply(
+            new CANcoderConfiguration()
+                .withMagnetSensor(
+                    new MagnetSensorConfigs()
+                        .withAbsoluteSensorRange(AbsoluteSensorRangeValue.Unsigned_0To1)
+                        .withMagnetOffset(-m_map.CanCoderStartingOffset)));
   }
 
   /**
    * Sets the desired state of the module.
    *
-   * @param desiredState The optimized state of the module that we'd like to be at in this
+   * @param desiredState The optimized state of the module that we'd like to be at
+   *                     in this
    *                     period
    */
   private void setDesiredState(SwerveModuleState desiredState) {
@@ -145,32 +155,37 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     setDriveSpeed(desiredState.speedMetersPerSecond);
 
     // Set the steering motor to the desired angle
-    setSteerMotorSpeed(desiredState.angle);
+    setModuleAngle(desiredState.angle);
   }
 
   private void setDriveSpeed(double speedMetersPerSecond) {
-    // Convert the speed to rotations per second by dividing by the wheel circumference and gear ratio
+    // Convert the speed to rotations per second by dividing by the wheel
+    // circumference and gear ratio
     var speedRotationsPerSecond = Units.MetersPerSecond.of(speedMetersPerSecond)
-      .divide(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
+        .div(DriveMap.DriveWheelCircumferenceMeters / DriveMap.DriveGearRatio);
 
-    // Set the drive motor to the desired speed using the spark's internal PID controller
+    // Set the drive motor to the desired speed using the spark's internal PID
+    // controller
     m_drivePidController.setReference(speedRotationsPerSecond.magnitude(), ControlType.kVelocity);
   }
 
-  private void setSteerMotorSpeed(Rotation2d angle) {
+  private void setModuleAngle(Rotation2d angle) {
     // Normalize to 0 to 1
-    var setpoint = angle.getRotations() % 1; 
-    if (setpoint < 0) setpoint += 1; 
+    var setpoint = angle.getRotations() % 1;
+    if (setpoint < 0)
+      setpoint += 1;
 
     // Calculate the new output using the PID controller
-    var newOutput = m_steeringPidController.calculate(m_inputs.ModuleState.angle.getRotations(), setpoint); 
-    
+    var newOutput = m_steeringPidController.calculate(m_inputs.ModuleState.angle.getRotations(), setpoint);
+
     // Set the steering motor's speed to the calculated output
     m_SteeringMotor.set(MathUtil.clamp(newOutput, -1, 1));
   }
 
   /**
-   * Optimizes the module angle & drive inversion to ensure the module takes the shortest path to drive at the desired angle
+   * Optimizes the module angle & drive inversion to ensure the module takes the
+   * shortest path to drive at the desired angle
+   * 
    * @param desiredState
    */
   private SwerveModuleState optimize(SwerveModuleState desiredState) {
@@ -178,9 +193,8 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
     var delta = desiredState.angle.minus(currentAngle);
     if (Math.abs(delta.getDegrees()) > 90.0) {
       return new SwerveModuleState(
-        -desiredState.speedMetersPerSecond,
-        desiredState.angle.rotateBy(Rotation2d.fromDegrees(180.0))
-      );
+          -desiredState.speedMetersPerSecond,
+          desiredState.angle.rotateBy(Rotation2d.fromDegrees(180.0)));
     } else {
       return desiredState;
     }
