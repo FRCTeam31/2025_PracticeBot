@@ -3,13 +3,15 @@ package frc.robot.subsystems.drivetrain.swervemodule;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.MagnetSensorConfigs;
 import com.ctre.phoenix6.hardware.CANcoder;
-import com.ctre.phoenix6.signals.AbsoluteSensorRangeValue;
-
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.CANSparkFlex;
-import com.revrobotics.CANSparkMax;
-import com.revrobotics.SparkPIDController;
-import com.revrobotics.CANSparkBase.ControlType;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.SparkFlex;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.config.ClosedLoopConfig;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
@@ -26,10 +28,10 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
   private SwerveModuleIOInputs m_inputs;
 
   // Devices
-  private CANSparkFlex m_SteeringMotor;
+  private SparkFlex m_SteeringMotor;
   private PIDController m_steeringPidController;
-  private CANSparkFlex m_driveMotor;
-  private SparkPIDController m_drivePidController;
+  private SparkFlex m_driveMotor;
+  private SparkClosedLoopController m_drivePidController;
   private CANcoder m_encoder;
 
   public SwerveModuleIOReal(SwerveModuleMap moduleMap) {
@@ -81,13 +83,14 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
    * Configures the steering motor and PID controller
    */
   private void setupSteeringMotor(PrimePIDConstants pid) {
-    m_SteeringMotor = new CANSparkFlex(m_map.SteeringMotorCanId, MotorType.kBrushless);
-    m_SteeringMotor.restoreFactoryDefaults();
+    m_SteeringMotor = new SparkFlex(m_map.SteeringMotorCanId, MotorType.kBrushless);
+    SparkMaxConfig config = new SparkMaxConfig();
+    config.inverted(m_map.SteerInverted); // CCW inversion
+    config.idleMode(IdleMode.kBrake);
+    config.smartCurrentLimit(60, 50);
 
-    m_SteeringMotor.setSmartCurrentLimit(60, 50);
     m_SteeringMotor.clearFaults();
-    m_SteeringMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
-    m_SteeringMotor.setInverted(m_map.SteerInverted); // CCW inversion
+    m_SteeringMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
     // Create a PID controller to calculate steering motor output
     m_steeringPidController = pid.createPIDController(0.02);
@@ -101,24 +104,17 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
    * @param pid
    */
   private void setupDriveMotor(PrimePIDConstants pid) {
-    m_driveMotor = new CANSparkFlex(m_map.DriveMotorCanId, MotorType.kBrushless);
-    m_driveMotor.clearFaults();
-    m_driveMotor.restoreFactoryDefaults();
-
+    m_driveMotor = new SparkFlex(m_map.DriveMotorCanId, MotorType.kBrushless);
+    SparkMaxConfig config = new SparkMaxConfig();
+    config.smartCurrentLimit(60, 50);
+    config.openLoopRampRate(m_map.DriveMotorRampRate);
+    config.inverted(m_map.DriveInverted);
+    config.idleMode(IdleMode.kBrake);
     // Set the Spark PID values
-    m_drivePidController = m_driveMotor.getPIDController();
-    m_drivePidController.setP(pid.kP);
-    m_drivePidController.setI(pid.kI);
-    m_drivePidController.setD(pid.kD);
-    m_drivePidController.setFF(pid.kV);
-    m_drivePidController.setOutputRange(-12, 12);
-
-    m_driveMotor.setSmartCurrentLimit(60, 50);
-    m_driveMotor.setOpenLoopRampRate(m_map.DriveMotorRampRate);
-    m_driveMotor.setInverted(m_map.DriveInverted);
-
+    config.closedLoop.pidf(pid.kP, pid.kI, pid.kD, pid.kV);
+    config.closedLoop.outputRange(-12, 12);
     // Apply the configuration
-    m_driveMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
+    m_driveMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
   }
 
   /**
@@ -136,7 +132,7 @@ public class SwerveModuleIOReal implements ISwerveModuleIO {
             new CANcoderConfiguration()
                 .withMagnetSensor(
                     new MagnetSensorConfigs()
-                        .withAbsoluteSensorRange(AbsoluteSensorRangeValue.Unsigned_0To1)
+                        .withAbsoluteSensorDiscontinuityPoint(0.5)
                         .withMagnetOffset(-m_map.CanCoderStartingOffset)));
   }
 
